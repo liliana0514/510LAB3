@@ -3,7 +3,7 @@
 Data storage and retrieval using Python.
 
 ## How to Run
-Put the following In your .gitignore file
+Create a gitignore as your first step! Put the following In your .gitignore file! Do NOT commit the sqlite files!
 ```
 *.sqlite
 *.sqlite3

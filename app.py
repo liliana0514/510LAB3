@@ -61,6 +61,10 @@ def delete_task(row_id):
 def main():
     st.title("Todo App")
 
+    # Search and Filter
+    search_query = st.text_input("Search tasks")
+    filter_state = st.selectbox("Filter by state", options=["", "planned", "in-progress", "done"])
+
     # Form to Add New Task
     data = sp.pydantic_form(key="task_form", model=Task)
     if data:
@@ -71,11 +75,14 @@ def main():
 
     # Display Tasks
     st.write("## Task List")
-    tasks = cur.execute("SELECT * FROM tasks").fetchall()
+    query = "SELECT * FROM tasks WHERE name LIKE ?"
+    params = [f"%{search_query}%"]
+    if filter_state:
+        query += " AND state = ?"
+        params.append(filter_state)
+    tasks = cur.execute(query, params).fetchall()
+
     for row in tasks:
-        if len(row) < 7:
-            st.error(f"Expected 7 columns, but found {len(row)}. Please check the database schema.")
-            continue
         cols = st.columns([1, 2, 2, 1, 2, 2, 2, 1, 1])
         cols[0].write(row[0])  # id
         cols[1].write(row[1])  # name
@@ -88,5 +95,4 @@ def main():
         cols[8].button("Delete", key=f"delete_{row[0]}", on_click=delete_task, args=(row[0],))
 
 main()
-
 
