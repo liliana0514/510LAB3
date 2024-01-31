@@ -2,14 +2,32 @@
 
 Data storage and retrieval using Python.
 
-## Installation
+## How to Run
+Put the following In your .gitignore file
+```
+*.sqlite
+*.sqlite3
+*.db
+```
 
-```bash
-pip install -r requirements.txt
+Put the following in your requirements.txt file
+```
+streamlit-pydantic
+pydantic==1.10.14
+psycopg2-binary==2.9.9
+```
+
+Open the terminal and run the following commands:
+```    
+pip install -r requirements.txt 
+pip install streamlit
+pip install pydantic
+pip install streamlit-pydantic
 ```
 
 ## Usage
 
+Run the app using the command in the terminal
 ```bash
 streamlit run app.py
 ```
