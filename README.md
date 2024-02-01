@@ -23,6 +23,7 @@ pip install -r requirements.txt
 pip install streamlit
 pip install pydantic
 pip install streamlit-pydantic
+pip install psycopg2
 ```
 
 Run the app using the command in the terminal

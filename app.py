@@ -1,104 +1,114 @@
 import sqlite3
-import streamlit as st
-from pydantic import BaseModel
-import streamlit_pydantic as sp
 from datetime import datetime
+import streamlit as st
+from pydantic import BaseModel, Field
 from enum import Enum
 
-# Database Connection
-con = sqlite3.connect("todoapp.sqlite", check_same_thread=False, isolation_level=None)
+# Enums for task state and category
+class State(str, Enum):
+    planned = "Planned"
+    in_progress = "In-Progress"
+    done = "Done"
+
+class Category(str, Enum):
+    school = "School"
+    work = "Work"
+    personal = "Personal"
+
+# Database connection setup
+DB_PATH = "todoapp.sqlite"
+con = sqlite3.connect(DB_PATH, check_same_thread=False)
+con.row_factory = sqlite3.Row  # Enables accessing columns by name
 cur = con.cursor()
 
-# Create Table with New Schema
-cur.execute(
-    """
+# Create tasks table with the new schema
+cur.execute("""
     CREATE TABLE IF NOT EXISTS tasks (
-        id INTEGER PRIMARY KEY,
-        name TEXT,
-        description TEXT,
-        state TEXT,
-        created_at DATETIME,
-        created_by TEXT,
-        category TEXT
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        name TEXT NOT NULL,
+        description TEXT NOT NULL,
+        state TEXT NOT NULL,
+        created_at TEXT NOT NULL,
+        created_by TEXT NOT NULL,
+        category TEXT NOT NULL
     )
-    """
-)
+""")
 
-# Enum for Task State
-class State(Enum):
-    planned = "planned"
-    in_progress = "in-progress"
-    done = "done"
-
-# Data Model with Extended Fields
+# Pydantic model to define the structure of a task
 class Task(BaseModel):
     name: str
     description: str
-    state: State = State.planned
-    created_at: datetime = datetime.now()
+    state: State = Field(default=State.planned)
+    created_at: datetime = Field(default_factory=datetime.now)
     created_by: str
-    category: str
+    category: Category
 
-# Function to Retrieve Unique Categories
-def get_unique_categories():
-    cur.execute("SELECT DISTINCT category FROM tasks WHERE category IS NOT NULL AND category != ''")
-    return [row[0] for row in cur.fetchall()]
+# Function to delete a task by ID
+def delete_task(task_id: int):
+    cur.execute("DELETE FROM tasks WHERE id = ?", (task_id,))
+    con.commit()
 
-# Toggle State Function
-def toggle_state(row_id, current_state):
-    new_state = "done" if current_state != "done" else "planned"
-    cur.execute("UPDATE tasks SET state = ? WHERE id = ?", (new_state, row_id))
-
-# Delete Task Function
-def delete_task(row_id):
-    cur.execute("DELETE FROM tasks WHERE id = ?", (row_id,))
-
-# Initialize session state for submission status
-if 'submitted' not in st.session_state:
-    st.session_state['submitted'] = False
-
-# Main App Function
 def main():
     st.title("Todo App")
 
-    # Form to Add New Task
-    task_data = sp.pydantic_form(key="task_form", model=Task)
-    if task_data:
-        cur.execute(
-            "INSERT INTO tasks (name, description, state, created_at, created_by, category) VALUES (?, ?, ?, ?, ?, ?)",
-            (task_data.name, task_data.description, task_data.state.value, task_data.created_at.strftime("%Y-%m-%d %H:%M:%S"), task_data.created_by, task_data.category),
-        )
-        st.session_state['submitted'] = True
+    # Task creation form
+    task_data = st.session_state.get("task_data", None)
+    with st.form("task_form"):
+        st.text_input("Name", key="name")
+        st.text_area("Description", key="description")
+        st.selectbox("State", [e.value for e in State], key="state")
+        st.text_input("Created by", key="created_by")
+        st.selectbox("Category", [e.value for e in Category], key="category")
+        submitted = st.form_submit_button("Submit")
+        if submitted:
+            task = {
+                "name": st.session_state.name,
+                "description": st.session_state.description,
+                "state": st.session_state.state,
+                "created_at": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
+                "created_by": st.session_state.created_by,
+                "category": st.session_state.category
+            }
+            cur.execute("""
+                INSERT INTO tasks (name, description, state, created_at, created_by, category)
+                VALUES (:name, :description, :state, :created_at, :created_by, :category)
+            """, task)
+            con.commit()
+            st.success("Task added successfully!")
 
-    if st.session_state['submitted']:
-        st.info("Task added successfully!")
+    # Task search and filter with an "All" category option
+    search_query = st.text_input("Search by name")
+    filter_category = st.selectbox("Filter by category", ["All"] + [e.value for e in Category])
 
-    # Display Tasks Heading
+    # Display tasks
     st.write("## Task List")
+    if filter_category == "All":
+        query = """
+            SELECT * FROM tasks
+            WHERE name LIKE '%' || :search_query || '%'
+        """
+        params = {"search_query": search_query}
+    else:
+        query = """
+            SELECT * FROM tasks
+            WHERE name LIKE '%' || :search_query || '%'
+            AND category = :filter_category
+        """
+        params = {"search_query": search_query, "filter_category": filter_category}
 
-    # Search and Filter
-    search_query = st.text_input("Search tasks")
-    unique_categories = get_unique_categories()
-    filter_category = st.selectbox("Filter by category", options=[""] + unique_categories)
-
-    # Task List Display
-    query = "SELECT * FROM tasks WHERE (name LIKE ? OR description LIKE ?)"
-    params = [f"%{search_query}%", f"%{search_query}%"]
-    if filter_category:
-        query += " AND category = ?"
-        params.append(filter_category)
     tasks = cur.execute(query, params).fetchall()
+    for task in tasks:
+        cols = st.columns([1, 2, 2, 2, 2, 2, 2, 2])
+        cols[0].write(task["id"])
+        cols[1].write(task["name"])
+        cols[2].write(task["description"])
+        cols[3].write(task["state"])
+        cols[4].write(task["created_at"])
+        cols[5].write(task["created_by"])
+        cols[6].write(task["category"])
+        if cols[7].button("Delete", key=f"delete_{task['id']}"):
+            delete_task(task["id"])
+            st.experimental_rerun()
 
-    for row in tasks:
-        cols = st.columns([1, 3, 3, 1, 2, 2, 2, 1, 1])
-        cols[0].write(row[0])  # id
-        cols[1].write(row[1])  # name
-        cols[2].write(row[2])  # description
-        state_label = str(row[3]) if row[3] else 'planned'  # Convert state to string for button label
-        cols[3].button(str(state_label), key=f"state_{row[0]}", on_click=toggle_state, args=(row[0], state_label))
-        cols[4].write(row[4])  # created_at
-        cols[5].write(row[5])  # created_by
-        cols[6].write(row[6])  # category
-        cols[7].button("Delete", key=f"delete_{row[0]}", on_click=delete_task, args=(row[0],))
-
-main()
+if __name__ == "__main__":
+    main()
