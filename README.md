@@ -3,7 +3,7 @@
 Data storage and retrieval using Python.
 
 ## How to Run
-Create a gitignore as your first step! Put the following In your .gitignore file! Do NOT commit the sqlite files!
+Create a gitignore as your first step! Put the following In your   gitignore file! Do NOT commit the sqlite files!
 ```
 *.sqlite
 *.sqlite3
@@ -25,9 +25,24 @@ pip install pydantic
 pip install streamlit-pydantic
 ```
 
-## Usage
-
 Run the app using the command in the terminal
 ```bash
 streamlit run app.py
 ```
+
+## Lessons Learned
+
+- How 
+- How 
+- How 
+
+## Questions / Uncertainties
+
+- How to 
+- How to 
+
+
+## Contact
+
+- Liliana Hsu
+# TECHIN510
