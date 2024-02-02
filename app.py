@@ -34,17 +34,10 @@ cur.execute("""
         state TEXT NOT NULL,
         created_at TEXT NOT NULL,
         created_by TEXT NOT NULL,
-        created_due TEXT NOT NULL,  -- Corrected from created_at to created_due
+        created_due TEXT NOT NULL,
         category TEXT NOT NULL
     )
 """)
-
-# Try to add the created_due column if it's not already part of the table
-try:
-    cur.execute("ALTER TABLE tasks ADD COLUMN created_due TEXT NOT NULL DEFAULT 'YYYY-MM-DD HH:MM:SS'")
-    con.commit()
-except sqlite3.OperationalError as e:
-    print(f"Error adding created_due column: {e}")
 
 # Pydantic model to define the structure of a task
 class Task(BaseModel):
@@ -53,7 +46,7 @@ class Task(BaseModel):
     state: State = Field(default=State.planned)
     created_at: datetime = Field(default_factory=datetime.now)
     created_by: str
-    created_due: datetime = Field(default_factory=datetime.now)  # Corrected field name
+    created_due: datetime = Field(default_factory=datetime.now)
     category: Category
 
 # Function to delete a task by ID
@@ -69,21 +62,21 @@ def main():
     if task_data:
         # Convert Pydantic model to dict for SQLite insertion
         task_dict = task_data.dict()
-        task_dict["created_at"] = task_dict["created_at"].strftime("%Y-%m-%d %H:%M:%S")  # Format datetime for SQLite
-        task_dict["created_due"] = task_dict["created_due"].strftime("%Y-%m-%d %H:%M:%S")  # Format datetime for SQLite
+        task_dict["created_at"] = task_dict["created_at"].strftime("%Y-%m-%d %H:%M:%S")
+        task_dict["created_due"] = task_dict["created_due"].strftime("%Y-%m-%d %H:%M:%S")
         cur.execute("""
             INSERT INTO tasks (name, description, state, created_at, created_by, created_due, category)
             VALUES (:name, :description, :state, :created_at, :created_by, :created_due, :category)
         """, task_dict)
         con.commit()
         st.success("Task added successfully!")
-    
+
     # Task search and filter with an "All" category option
     search_query = st.text_input("Search by name")
     filter_category = st.selectbox("Filter by category", ["All"] + [e.value for e in Category])
 
     # Display tasks with column titles
-    st.write(" Task List")
+    st.write("## Task List")
     title_cols = st.columns([1, 2, 2, 2, 2, 2, 2, 2, 2])
     titles = ["ID", "Name", "Description", "State", "Created at", "Created by", "Due date", "Category", "Delete"]
     for col, title in zip(title_cols, titles):
@@ -105,7 +98,7 @@ def main():
         cols[3].write(task["state"])
         cols[4].write(task["created_at"])
         cols[5].write(task["created_by"])
-        cols[6].write(task["created_due"])  # Correctly displays the due date
+        cols[6].write(task["created_due"])
         cols[7].write(task["category"])
         if cols[8].button("Delete", key=f"delete_{task['id']}"):
             delete_task(task["id"])
@@ -113,3 +106,4 @@ def main():
 
 if __name__ == "__main__":
     main()
+
