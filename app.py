@@ -3,6 +3,12 @@ from datetime import datetime
 import streamlit as st
 from pydantic import BaseModel, Field
 from enum import Enum
+import streamlit_pydantic as sp 
+
+
+# Set page config to centered mode
+st.set_page_config(layout="centered")
+
 
 # Enums for task state and category
 class State(str, Enum):
@@ -30,6 +36,7 @@ cur.execute("""
         state TEXT NOT NULL,
         created_at TEXT NOT NULL,
         created_by TEXT NOT NULL,
+        created_at TEXT NOT NULL,
         category TEXT NOT NULL
     )
 """)
@@ -41,6 +48,7 @@ class Task(BaseModel):
     state: State = Field(default=State.planned)
     created_at: datetime = Field(default_factory=datetime.now)
     created_by: str
+    created_due: datetime = Field(default_factory=datetime.now)
     category: Category
 
 # Function to delete a task by ID
@@ -51,37 +59,31 @@ def delete_task(task_id: int):
 def main():
     st.title("Todo App")
 
-    # Task creation form
-    task_data = st.session_state.get("task_data", None)
-    with st.form("task_form"):
-        st.text_input("Name", key="name")
-        st.text_area("Description", key="description")
-        st.selectbox("State", [e.value for e in State], key="state")
-        st.text_input("Created by", key="created_by")
-        st.selectbox("Category", [e.value for e in Category], key="category")
-        submitted = st.form_submit_button("Submit")
-        if submitted:
-            task = {
-                "name": st.session_state.name,
-                "description": st.session_state.description,
-                "state": st.session_state.state,
-                "created_at": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
-                "created_by": st.session_state.created_by,
-                "category": st.session_state.category
-            }
-            cur.execute("""
-                INSERT INTO tasks (name, description, state, created_at, created_by, category)
-                VALUES (:name, :description, :state, :created_at, :created_by, :category)
-            """, task)
-            con.commit()
-            st.success("Task added successfully!")
-
+    # Create a Form using the streamlit-pydantic package, just pass it the Task Class
+    task_data = sp.pydantic_form(key="task_form", model=Task)
+    if task_data:
+        # Convert Pydantic model to dict for SQLite insertion
+        task_dict = task_data.dict()
+        task_dict["created_at"] = datetime.now().strftime("%Y-%m-%d %H:%M:%S")  # Format datetime for SQLite
+        cur.execute("""
+            INSERT INTO tasks (name, description, state, created_at, created_by, created_at ,category)
+            VALUES (:name, :description, :state, :created_at, :created_by, :created_at, :category)
+        """, task_dict)
+        con.commit()
+        st.success("Task added successfully!")
+    
     # Task search and filter with an "All" category option
     search_query = st.text_input("Search by name")
     filter_category = st.selectbox("Filter by category", ["All"] + [e.value for e in Category])
 
-    # Display tasks
+    # Display tasks with column titles
+    # Display column titles
     st.write("## Task List")
+    title_cols = st.columns([1, 2, 2, 2, 2, 2, 2, 2, 2])
+    titles = ["ID", "Name", "Description", "State", "Created at", "Created by", "Created due", "Category", "Delete"]
+    for col, title in zip(title_cols, titles):
+        col.write(title)
+
     if filter_category == "All":
         query = """
             SELECT * FROM tasks
@@ -98,15 +100,16 @@ def main():
 
     tasks = cur.execute(query, params).fetchall()
     for task in tasks:
-        cols = st.columns([1, 2, 2, 2, 2, 2, 2, 2])
+        cols = st.columns([1, 2, 2, 2, 2, 2, 2, 2, 2])
         cols[0].write(task["id"])
         cols[1].write(task["name"])
         cols[2].write(task["description"])
         cols[3].write(task["state"])
         cols[4].write(task["created_at"])
         cols[5].write(task["created_by"])
-        cols[6].write(task["category"])
-        if cols[7].button("Delete", key=f"delete_{task['id']}"):
+        cols[6].write(task["created_at"])
+        cols[7].write(task["category"])
+        if cols[8].button("Delete", key=f"delete_{task['id']}"):
             delete_task(task["id"])
             st.experimental_rerun()
 

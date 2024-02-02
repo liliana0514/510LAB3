@@ -2,8 +2,11 @@
 
 Data storage and retrieval using Python.
 
+## Overview
+Hi! This is the repository for my personal To-Do list for TECHIN 510. This website allows you to enter Name, Description, State (Planned,In-Progress,Done), Category, time. You can also use the search bar to search for keywords or use Filter by category to find to-do items for a specific category. Click here to my website.
+
 ## How to Run
-Create a gitignore as your first step! Put the following In your   gitignore file! Do NOT commit the sqlite files!
+Create a gitignore as your first step! Put the following In your gitignore file! Do NOT commit the sqlite files!
 ```
 *.sqlite
 *.sqlite3
